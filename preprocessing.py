@@ -6,13 +6,8 @@ from sklearn.preprocessing import StandardScaler
 def load_cultivar_data(cultivar_name):
     """품종별 데이터 로딩 함수"""
     # 실제 구현시 CSV/DB에서 품종별 데이터 로드
-    data = pd.DataFrame({
-        'stem_length': np.random.normal(loc=80, scale=10, size=100),
-        'leaf_count': np.random.normal(loc=35, scale=5, size=100),
-        'flower_count': np.random.poisson(lam=5, size=100),
-        'fruit_count': np.random.poisson(lam=3, size=100)
-    })
-    data['cultivar'] = cultivar_name
+    data = pd.read_csv("통합_생육기본_데이터.xlsx")
+    data['품종'] = cultivar_name
     return data
 
 # 품종별 데이터 수집 (예시: 3개 품종)
@@ -54,7 +49,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 # 클러스터링에 사용할 특징 선택
-features = normalized_data[['stem_length', 'leaf_count', 'flower_ratio', 'fruit_ratio']]
+features = normalized_data[['줄기굵기', '엽수', '개화', '착과']]
 
 # 차원 축소[1]
 pca = PCA(n_components=2)

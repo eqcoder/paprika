@@ -15,10 +15,10 @@ print(farm_info.head())
 growth_folder = './data/생육기본'
 all_files = glob.glob(os.path.join(growth_folder, '*.xlsx'))
 combined_data = pd.DataFrame()
-
+i=0
 for file_path in all_files:
     # 파일명에서 농가명 추출 (파일명 형식: [농가명]_생육기본.xlsx)
-    
+    i+=1 
     
     # 생육기본 데이터 로드
     growth_data = pd.read_excel(file_path)
@@ -48,9 +48,10 @@ for file_path in all_files:
     
     # 새로운 열 추가
     growth_data['재식밀도'] = density
-    growth_data['품목'] = crop_type
+    growth_data['품종'] = crop_type
     growth_data['정식기일자'] = planting_date
     growth_data['농가명'] = farm_name
+    growth_data['농가레이블']=i
     
     # 데이터 통합
     combined_data = pd.concat([combined_data, growth_data], ignore_index=True)
@@ -66,4 +67,4 @@ else:
 # 결과 미리보기
 if not combined_data.empty:
     print("\n통합 데이터 미리보기:")
-    print(combined_data[['농가명', '재식밀도', '품목', '정식기일자']].head())
+    print(combined_data[['농가명', '재식밀도', '품종', '정식기일자']].head())
