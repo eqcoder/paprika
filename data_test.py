@@ -1,10 +1,8 @@
 import pandas as pd
 import numpy as np
-from scipy import stats
 import matplotlib.pyplot as plt
-from scipy.stats import shapiro
-import statsmodels.api as sm
 from sklearn.preprocessing import StandardScaler, RobustScaler
+import scipy.stats as stats
 
 plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
@@ -26,9 +24,11 @@ import seaborn as sns
 
 
 scaler_std = StandardScaler()
-morph_cols = ['엽수', '엽장', '엽폭', '마디별열매수', '주야간온도차', '줄기굵기', '일일생장률', '일평균온도', '일누적일사량']
+morph_cols = ['엽장', '엽수', '엽폭', '마디별열매수', '주야간온도차', '줄기굵기', '일일생장률', '일평균온도', '일누적일사량']
 df[morph_cols] = scaler_std.fit_transform(df[morph_cols])
-df['화방높이'] = np.log1p(df['화방높이'])
+count_cols = ['화방높이']
+for col in count_cols:
+    df[col] = np.log1p(df[col])
 scaler_robust = RobustScaler()
 df['화방높이'] = scaler_robust.fit_transform(df[['화방높이']])
 count_cols = ['마디별착과수', '마디별 꽃수', '마디별수확수']
@@ -82,7 +82,8 @@ for i, col in enumerate(columns):
     plot_idx += 1
     
     # Q-Q 플롯
-    sm.qqplot(df[col], line='45', ax=axes[plot_idx])
+    stats.probplot(df[col], dist=stats.norm, plot=plt)
+    
     axes[plot_idx].set_title(f'{col} - Q-Q 플롯')
     axes[plot_idx].set_xlabel('이론적 분위')
     axes[plot_idx].set_ylabel('표본 분위')

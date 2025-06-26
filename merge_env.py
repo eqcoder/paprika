@@ -21,7 +21,7 @@ for file in env_files:
     df_env['hour'] = df_env['datetime'].dt.hour
     
     # 필수 컬럼 확인
-    required_cols = ['온도_내부', '누적일사량_외부', '상대습도_내부']
+    required_cols = ['온도_외부']
     for col in required_cols:
         if col not in df_env.columns:
             raise ValueError(f'{file}에 {col} 컬럼이 없습니다.')
