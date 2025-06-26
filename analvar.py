@@ -10,9 +10,6 @@ plt.rcParams['axes.unicode_minus'] = False
 df = pd.read_excel('조사일_이전조사일_포함.xlsx')
 variables = ['일일생장률', '화방높이', '줄기굵기', '엽수', '엽장', '엽폭']
 
-# 서브플롯 설정
-fig, axes = plt.subplots(2, 3, figsize=(20, 15))
-axes_flat = axes.flatten()
 
 # 각 지표별 그래프 그리기
 for var in variables:
