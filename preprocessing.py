@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, RobustScaler
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -14,96 +14,16 @@ def load_cultivar_data(cultivar_name):
     return data
 plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
+data = pd.read_excel("생육환경_통합데이터_결측치처리완료_최종.xlsx")
 scaled_data=pd.read_excel('생육환경_통합데이터_정규화.xlsx')
 numeric_cols = scaled_data.select_dtypes(include=['float64', 'int64']).columns
 numeric_df = scaled_data[numeric_cols]
-# def cultivar_specific_normalization(data):
-#     """품종별 특성 기반 정규화"""
-#     normalized_data = data.copy()
-    
-#     # 품종별 그룹화
-#     grouped = data.groupby('cultivar')
-    
-#     # 품종별 Z-score 정규화[1]
-#     for cultivar, group in grouped:
-#         cult_indices = group.index
-#         scaler = StandardScaler()
-#         normalized_data.loc[cult_indices, ['stem_length', 'leaf_count']] = scaler.fit_transform(
-#             normalized_data.loc[cult_indices, ['stem_length', 'leaf_count']])
-    
-#     # 개화/과실 특성은 품종별 상대적 비율로 변환[4]
-#     for cultivar, group in grouped:
-#         cult_indices = group.index
-#         max_flower = group['flower_count'].max()
-#         max_fruit = group['fruit_count'].max()
-        
-#         if max_flower > 0:
-#             normalized_data.loc[cult_indices, 'flower_ratio'] = (
-#                 normalized_data.loc[cult_indices, 'flower_count'] / max_flower)
-        
-#         if max_fruit > 0:
-#             normalized_data.loc[cult_indices, 'fruit_ratio'] = (
-#                 normalized_data.loc[cult_indices, 'fruit_count'] / max_fruit)
-    
-#     return normalized_data.fillna(0)
 
-
-
-
-
-
-
-
-# 클러스터링에 사용할 특징 선택
-# PCA 적용 후 설명 분산 확인
-# pca = PCA()
-# pca.fit(numeric_df)  # 스케일링된 데이터
-
-# 누적 설명 분산 계산
-# explained_variance = pca.explained_variance_ratio_
-# cumulative_variance = np.cumsum(explained_variance)
-
-# # 시각화
-# plt.figure(figsize=(10, 6))
-# plt.plot(range(1, len(cumulative_variance)+1), cumulative_variance, 'o-')
-# plt.axhline(y=0.95, color='r', linestyle='--')  # 95% 기준선
-# plt.title('누적 설명 분산')
-# plt.xlabel('주성분 개수')
-# plt.ylabel('누적 설명 분산 비율')
-# plt.grid(True)
-# plt.show()
-
-# # 최적의 주성분 개수 선택 (일반적으로 95% 이상)
-# n_components = np.argmax(cumulative_variance >= 0.95) + 1
-# print(f"95% 분산 설명을 위한 주성분 개수: {n_components}")
-# explained_variance = pca.explained_variance_ratio_
-# print(f"설명 분산: {explained_variance}")
-# loadings = pd.DataFrame(
-#     pca.components_.T,
-#     columns=[f'PC{i+1}' for i in range(pca.n_components_)],
-#     index=df.columns
-# )
-# print(loadings)
-# # PC1에서 |로딩| > 0.5인 변수 추출
-# pc1_important = loadings[abs(loadings['PC1']) > 0.5].index.tolist()
-# print(f"PC1 주요 변수: {pc1_important}")
-# plt.plot(explained_variance, 'o-')
-# plt.axhline(y=0.05, color='r', linestyle='--') # 유의미한 분산 임계값
-# plt.title("스크리 플롯: 분산 설명 비율")
-# plt.xlabel("주성분")
-# plt.ylabel("설명 분산")
-# plt.show()
-# plt.figure(figsize=(10, 6))
-# sns.heatmap(loadings, annot=True, cmap='coolwarm', center=0)
-# plt.title("변수별 주성분 로딩")
-# plt.show()
-# 차원 축소[1]
-# 2. PCA (11개 주성분)
 
 selected_features = ['엽수','화방높이','일일생장률','줄기굵기','엽장','엽폭']
 X = scaled_data[selected_features]
-pca = PCA(n_components=6)
-pca_features = pca.fit_transform(X)
+pca = PCA(n_components=11)
+pca_features = pca.fit_transform(scaled_data)
 # 3. K-means 클러스터링 (2개 그룹)
 kmeans = KMeans(n_clusters=2, random_state=42, n_init=10)  # n_init 추가
 clusters = kmeans.fit_predict(pca_features)
@@ -125,7 +45,7 @@ def interpret_clusters(df, clusters):
     rep_scores = cluster_stats[rep_cols].mean(axis=1)
     
     # 클러스터 매핑 생성
-    cluster_mapping = {}
+    cluster_mapping={}
     for cluster in cluster_stats.index:
         if veg_scores[cluster] > rep_scores[cluster]:
             cluster_mapping[cluster] = '영양생장'
@@ -134,49 +54,89 @@ def interpret_clusters(df, clusters):
     
     df_temp['생장단계'] = df_temp['cluster'].map(cluster_mapping)
     return df_temp, cluster_mapping
+result_df, cluster_mapping = interpret_clusters(scaled_data, clusters)
+# 3. 생장 강도 계산 (클러스터 중심과의 거리 기반)
+from sklearn.metrics.pairwise import euclidean_distances
 
-# 5. 결과 통합 및 해석
-# result_df, cluster_mapping = interpret_clusters(scaled_data, clusters)
+# PCA 공간에서 클러스터 중심 좌표
+centroids = kmeans.cluster_centers_
 
-# # 6. 시각화 (PCA 공간에서)
-# color_dict = {'영양생장': '#1f77b4', '생식생장': '#d62728'}  # 파랑/빨강
+# 각 포인트의 클러스터 중심까지 거리 계산
+distances = euclidean_distances(pca_features, centroids)
 
-# plt.figure(figsize=(13, 10))
+veg_cluster_id = [k for k, v in cluster_mapping.items() if v == '영양생장'][0]
+rep_cluster_id = [k for k, v in cluster_mapping.items() if v == '생식생장'][0]
 
-# for label, color in color_dict.items():
-#     idx = result_df['생장단계'] == label
-#     plt.scatter(
-#         pca_features[idx, 0], pca_features[idx, 1],
-#         c=color, label=label, s=80, alpha=0.75, edgecolor='k'
-#     )
+# 2. 각 포인트의 두 중심까지 거리 계산
+d_veg = np.linalg.norm(pca_features - centroids[veg_cluster_id], axis=1)
+d_rep = np.linalg.norm(pca_features - centroids[rep_cluster_id], axis=1)
 
-# centers = kmeans.cluster_centers_[:, :2]
-# plt.scatter(
-#     centers[:, 0], centers[:, 1],
-#     c='gold', marker='X', s=300, edgecolor='black', linewidth=2, label='클러스터 중심'
-# )
+# 3. 거리 차이 계산 (|d_veg - d_rep|)
+dist_diff = np.abs(d_veg - d_rep)
 
-# # 변수 기여도(로딩) 화살표 (굵게, 폰트 크게)
-# loadings = pca.components_[:2].T
-# features = scaled_data.columns
-# for i, feature in enumerate(features):
-#     plt.arrow(
-#         0, 0, loadings[i, 0]*4, loadings[i, 1]*4,
-#         color='lightgreen', linewidth=3, head_width=0.18, head_length=0.25, alpha=0.7, length_includes_head=True
-#     )
-#     plt.text(
-#         loadings[i, 0]*4.5, loadings[i, 1]*4.5, feature,
-#         color='darkgreen', fontsize=12, fontweight='bold', ha='center', va='center',
-#         bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, boxstyle='round,pad=0.3')
-#     )
+# 4. 강도 계산 및 부호 할당
+growth_intensity = np.where(d_veg < d_rep, 
+                            -dist_diff,  # 영양생장이 더 가까울 때
+                            dist_diff)   # 생식생장이 더 가까울 때
+abs_max = np.max(np.abs(growth_intensity))
 
-# plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)', fontsize=16, fontweight='bold')
-# plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)', fontsize=16, fontweight='bold')
-# plt.title('PCA 기반 영양생장/생식생장 클러스터링', fontsize=20, fontweight='bold', pad=20)
-# plt.grid(True, linestyle='--', linewidth=0.8, alpha=0.5)
-# plt.legend(title='생장 단계', fontsize=14, title_fontsize=15, loc='best', frameon=True, facecolor='white', edgecolor='black')
-# plt.tight_layout(pad=3.0)
-# plt.show()
+# 3. -1~1로 정규화
+growth_intensity = growth_intensity / abs_max
+# 5. 결과 할당
+data['생장강도'] = growth_intensity
+data['생장단계'] = np.where(d_veg < d_rep, '영양생장', '생식생장')
+
+
+# 3. 생장 강도 계산 (클러스터 중심과의 거리 기반)
+from sklearn.metrics.pairwise import euclidean_distances
+
+# PCA 공간에서 클러스터 중심 좌표
+centroids = kmeans.cluster_centers_
+
+# 각 포인트의 클러스터 중심까지 거리 계산
+
+data.to_excel("생육통합데이터_라벨링.xlsx")
+
+
+# 6. 시각화 (PCA 공간에서)
+color_dict = {'영양생장': '#1f77b4', '생식생장': '#d62728'}  # 파랑/빨강
+
+plt.figure(figsize=(13, 10))
+
+for label, color in color_dict.items():
+    idx = data['생장단계'] == label
+    plt.scatter(
+        pca_features[idx, 0], pca_features[idx, 1],
+        c=color, label=label, s=80, alpha=0.75, edgecolor='k'
+    )
+
+centers = kmeans.cluster_centers_[:, :2]
+plt.scatter(
+    centers[:, 0], centers[:, 1],
+    c='gold', marker='X', s=300, edgecolor='black', linewidth=2, label='클러스터 중심'
+)
+
+# 변수 기여도(로딩) 화살표 (굵게, 폰트 크게)
+loadings = pca.components_[:2].T
+features = scaled_data.columns
+for i, feature in enumerate(features):
+    plt.arrow(
+        0, 0, loadings[i, 0]*4, loadings[i, 1]*4,
+        color='lightgreen', linewidth=3, head_width=0.18, head_length=0.25, alpha=0.7, length_includes_head=True
+    )
+    plt.text(
+        loadings[i, 0]*4.5, loadings[i, 1]*4.5, feature,
+        color='darkgreen', fontsize=12, fontweight='bold', ha='center', va='center',
+        bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, boxstyle='round,pad=0.3')
+    )
+
+plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)', fontsize=16, fontweight='bold')
+plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)', fontsize=16, fontweight='bold')
+plt.title('PCA 기반 영양생장/생식생장 클러스터링', fontsize=20, fontweight='bold', pad=20)
+plt.grid(True, linestyle='--', linewidth=0.8, alpha=0.5)
+plt.legend(title='생장 단계', fontsize=14, title_fontsize=15, loc='best', frameon=True, facecolor='white', edgecolor='black')
+plt.tight_layout(pad=3.0)
+plt.show()
 # # 7. 주성분 분석 결과 출력
 # print("="*50)
 # print("주성분 분석 결과:")
@@ -193,21 +153,54 @@ def interpret_clusters(df, clusters):
 # print(loadings_df)
 # # 클러스터 중심값 추출
 
-cluster_centers = pd.DataFrame(
-    kmeans.cluster_centers_,
-    columns=X.columns
-)
-thresholds = {}
-for col in cluster_centers.columns:
-    veg_value = cluster_centers.loc[0, col]
-    rep_value = cluster_centers.loc[1, col]
-    thresholds[col] = (veg_value + rep_value) / 2
+# cluster_centers = pd.DataFrame(
+#     kmeans.cluster_centers_,
+#     columns=X.columns
+# )
+# thresholds = {}
+# for col in cluster_centers.columns:
+#     veg_value = cluster_centers.loc[0, col]
+#     rep_value = cluster_centers.loc[1, col]
+#     thresholds[col] = (veg_value + rep_value) / 2
 
-print("지표별 구분 임계값:")
-for k, v in thresholds.items():
-    print(f"{k}: {v}")
+# print("지표별 구분 임계값:")
+# for k, v in thresholds.items():
+#     scaled_value = [[v]]
+#     if k=="엽수" or k=="엽장" or k=="엽폭" or k=="일일생장률" or k=="줄기굵기" or k=="화방높이":
+#         scaler = StandardScaler()
+#         scaler.fit(data[k].values.reshape(-1, 1))
+        
+#         restored_value = scaler.inverse_transform(scaled_value)
+        
+#     elif k=="화방높이":
+#         X_log = np.log(data[k].values.reshape(-1, 1))
 
+#         # 2단계: RobustScaler 적용
+#         scaler = RobustScaler()
+#         X_robust = scaler.fit_transform(X_log)
 
+#         # --- 역변환 과정 ---
+#         # 1. RobustScaler 역변환
+#         restored_value = scaler.inverse_transform(scaled_value)
+
+#         # 2. 로그 역변환
+#         X_original_restored = np.exp(restored_value)
+#     else:
+#         X_log = np.log(data[k].values.reshape(-1, 1))
+
+#         # 2단계: RobustScaler 적용
+#         scaler = StandardScaler()
+#         X_robust = scaler.fit_transform(X_log)
+
+#         # --- 역변환 과정 ---
+#         # 1. RobustScaler 역변환
+#         restored_value = scaler.inverse_transform(scaled_value)
+
+#         # 2. 로그 역변환
+#         X_original_restored = np.exp(restored_value)
+        
+#     print(f"{k}: {restored_value}")
+    
 # # # 새로운 데이터 예측
 # # # new_sample = {'cultivar': '페라리', 'stem_length': 75, 'leaf_count': 30, 
 # # #               'flower_count': 4, 'fruit_count': 2}

@@ -9,7 +9,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
-
+# 데이터 준비 (가정: df는 정식후일자 기준 정렬된 데이터)
 df = pd.read_excel("생육통합데이터_라벨링.xlsx")
 grouped_df = df.groupby(['농가레이블', '정식후일자'], as_index=False).agg({
     '마디별 꽃수': 'mean',
@@ -78,9 +78,15 @@ def adjust_growth_state(row):
     if abs(diff) < 0.1:
         return '유지'
     elif diff > 0:
+<<<<<<< HEAD
         return '생식생장 강화' if actual > 0 else '영양생장 약화'
     else:
         return '생식생장 약화' if actual > 0 else '영양생장 강화'
+=======
+        return '생식생장 강화' if actual > 0 else '영양생장 강화'
+    else:
+        return '생식생장 약화' if actual > 0 else '영양생장 약화'
+>>>>>>> c054ea8ef0c8e46e69276c385ee8ce8c9cccca80
 
 # 생장 단계 조정 적용
 result_df['조정_방향'] = result_df.apply(adjust_growth_state, axis=1)
@@ -128,6 +134,7 @@ plt.xticks(rotation=0)
 plt.tight_layout()
 plt.show()
 
+<<<<<<< HEAD
 for farm in result_df['농가레이블'].unique():
     farm_data = result_df[result_df['농가레이블'] == farm]
     
@@ -146,6 +153,27 @@ for farm in result_df['농가레이블'].unique():
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.show()
+=======
+# 생장 강도 비교 시각화
+# for farm in result_df['농가레이블'].unique():
+#     farm_data = result_df[result_df['농가레이블'] == farm]
+    
+#     plt.figure(figsize=(12, 6))
+#     plt.plot(farm_data['정식후일자'], farm_data['실제_생장강도'], 'o-', label='실제 강도')
+#     plt.plot(farm_data['정식후일자'], farm_data['예측_생장강도'], 's-', label='예측 강도')
+    
+#     # 조정 방향 표시
+#     for i, row in farm_data.iterrows():
+#         plt.text(row['정식후일자'], row['실제_생장강도']+0.05, 
+#                 row['조정_방향'], ha='center', fontsize=9)
+    
+#     plt.title(f'농가 {farm} - 생장 강도 비교')
+#     plt.xlabel('정식 후 경과 일수')
+#     plt.ylabel('생장 강도')
+#     plt.legend()
+#     plt.grid(True, alpha=0.3)
+#     plt.show()
+>>>>>>> c054ea8ef0c8e46e69276c385ee8ce8c9cccca80
 def evaluate_regression(y_true, y_pred):
     mae = mean_absolute_error(y_true, y_pred)
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
